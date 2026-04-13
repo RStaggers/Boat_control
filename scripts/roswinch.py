@@ -4,6 +4,7 @@ import rclpy
 from rclpy.node import Node
 from mavros_msgs.msg import WaypointReached
 from mavros_msgs.srv import CommandLong
+from mavros_msgs.srv import SetMode
 from std_msgs.msg import Float32
 from sensor_msgs.msg import BatteryState
 from rclpy.qos import qos_profile_sensor_data
@@ -26,19 +27,24 @@ import board
 
 
 
-
 class WinchMissionNode(Node):
 
     def __init__(self):
         super().__init__('winch_mission_node')
 
         # ==================================================
-        # MAVROS COMMAND CLIENT
+        # MAVROS COMMAND CLIENTS
         # ==================================================
 
         self.command_client = self.create_client(
             CommandLong,
             '/mavros/cmd/command'
+        )
+
+        # Mode client
+        self.mode_client = self.create_client(
+            SetMode,
+            '/mavros/set_mode'
         )
 
         # ==================================================
@@ -178,6 +184,11 @@ class WinchMissionNode(Node):
         self.get_logger().info("Winch Mission Node READY (Homing Enabled)")
 
     # ==================================================
+    # PAUSE VARIABLE
+    # ==================================================
+        self.in_loiter = False
+
+    # ==================================================
     # CALLBACKS
     # ==================================================
     def battery_cb(self,msg):
@@ -189,7 +200,10 @@ class WinchMissionNode(Node):
         if msg.wp_seq != self.last_wp:
             self.get_logger().info(f"Waypoint {msg.wp_seq} reached")
             self.last_wp = msg.wp_seq
-            if self.state == "IDLE":
+            if self.state == "IDLE" and not self.in_loiter:
+                self.set_mode("AUTO.LOITER")
+                self.in_loiter = True
+                
                 self.state = "SONAR"
                 self.sonar_sum = 0
                 self.sonar_count = 0
@@ -306,6 +320,21 @@ class WinchMissionNode(Node):
         req.param7 = 0.0
 
         self.command_client.call_async(req)
+
+    # ==================================================
+    # THE PAUSE MECHANISM
+    # ==================================================
+
+    def set_mode(self, mode_str):
+        if not self.mode_client.wait_for_service(timeout_sec=0.5):
+            self.get_logger().warning("Mode service not available")
+            return
+
+        req = SetMode.Request()
+        req.custom_mode = mode_str
+
+        self.mode_client.call_async(req)
+        self.get_logger().info(f">>> Mode set to {mode_str}")
 
     # ==================================================
     # MAIN LOOP
@@ -430,6 +459,11 @@ class WinchMissionNode(Node):
 
                 self.get_logger().info("Winch surface calibrated")
                 self.count = 0
+                
+                if self.in_loiter:
+                    self.set_mode("AUTO.MISSION")
+                    self.in_loiter = False
+                
                 self.state = "IDLE"
 
         elif self.state == "IDLE":
