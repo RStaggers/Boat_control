@@ -12,6 +12,8 @@ System dependencies:
 sudo apt update
 sudo apt install libusb-1.0-0-dev
 
+Check the requirements.txt under the winch, sonde_read, and ping_sonar_ros folders for any extra packages to install
+
 ------------------------------------------------------------
 FTDI / USB PERMISSIONS (WINCH / FT232H SUPPORT)
 ------------------------------------------------------------
@@ -54,19 +56,25 @@ source install/setup.bash
 TERMINAL 1 - PING SONAR (Ping1D)
 ============================================================
 
+source /opt/ros/<ROS2_version>/setup.bash
+cd ~/ros2_ws
+source install/setup.bash
 cd ~/ros2_ws/src/Boat_control/scripts/ping_sonar_ros
 ros2 run ping_sonar_ros ping1d_node
 
 ============================================================
 TERMINAL 2 - MAVROS
 ============================================================
-
+source /opt/ros/<ROS2_version>/setup.bash
 ros2 launch mavros px4.launch fcu_url:=/dev/ttyUSB0:921600
 
 ============================================================
 TERMINAL 3 - SONDE READER
 ============================================================
 
+source /opt/ros/<ROS2_version>/setup.bash
+cd ~/ros2_ws
+source install/setup.bash
 cd ~/ros2_ws/src/Boat_control/scripts/sonde_read/scripts
 
 chmod +x read_serial.py
@@ -76,17 +84,21 @@ chmod +x read_serial.py
 TERMINAL 4 - WINCH (FT232H / BLINKA)
 ============================================================
 
+source /opt/ros/<ROS2_version>/setup.bash
+cd ~/ros2_ws
+source install/setup.bash
 source ~/ros2venv/bin/activate
 
 source /opt/ros/<ROS2_version>/setup.bash
 cd ~/ros2_ws
 source install/setup.bash
 
-export BLINKA_FT232H=1
 
 cd src/Boat_control/scripts/winch/winch
+export BLINKA_FT232H=1
 
-chmod +x roswinch.py
+# Make roswinch.py an executuable file:
+## chmod +x roswinch.py
 ./roswinch.py
 
 ============================================================
@@ -105,4 +117,6 @@ NOTES
 - Always source ROS in every new terminal
 - Activate ros2venv only for FT232H / winch usage
 - Ensure /dev/ttyUSB0 is correct for MAVROS
+- Ensure /dev/ttyUSB1 is correct for Blue Robotics Ping1D
+- Ensure /dev/ttyUSB2 is correct for Sonde
 - If devices fail, check permissions and udev rules
